@@ -1,19 +1,38 @@
 Meteor.startup ->
 
+	ChatSubscription.find({}, { fields: { unread: 1 } }).observeChanges
+		changed: (id, fields) ->
+			if fields.unread and fields.unread > 0
+				KonchatNotification.newMessage()
+
+Meteor.startup ->
+
 	Tracker.autorun ->
 
 		unreadCount = 0
 		unreadAlert = false
 
-		subscriptions = ChatSubscription.find({}, { fields: { unread: 1, alert: 1 } })
+		subscriptions = ChatSubscription.find({open: true}, { fields: { unread: 1, alert: 1, rid: 1, t: 1, name: 1, ls: 1 } })
+
+		rid = undefined
+		if FlowRouter.getRouteName() in ['channel', 'group', 'direct']
+			rid = Session.get 'openedRoom'
 
 		for subscription in subscriptions.fetch()
-			unreadCount += subscription.unread
-			if subscription.alert is true
-				unreadAlert = '•'
+			if subscription.rid is rid and (subscription.alert or subscription.unread > 0)
+				readMessage.readNow()
+			else
+				unreadCount += subscription.unread
+				if subscription.alert is true
+					unreadAlert = '•'
+
+			readMessage.refreshUnreadMark(subscription.rid)
 
 		if unreadCount > 0
-			Session.set 'unread', unreadCount
+			if unreadCount > 999
+				Session.set 'unread', '999+'
+			else
+				Session.set 'unread', unreadCount
 		else if unreadAlert isnt false
 			Session.set 'unread', unreadAlert
 		else
@@ -26,8 +45,9 @@ Meteor.startup ->
 		animation: 'none'
 
 	Tracker.autorun ->
-
+		siteName = RocketChat.settings.get 'Site_Name'
+		
 		unread = Session.get 'unread'
 		fireGlobalEvent 'unread-changed', unread
 		favico?.badge unread, bgColor: if typeof unread isnt 'number' then '#3d8a3a' else '#ac1b1b'
-		document.title = if unread == '' then 'Rocket.Chat' else '(' + unread + ') Rocket.Chat'
+		document.title = if unread == '' then siteName else '(' + unread + ') '+ siteName

@@ -11,10 +11,11 @@
 			"CDN_PREFIX": "//dbde4sd21oahf.cloudfront.net",
 			"MONGO_URL": "mongodb://localhost:27017/rocketchat",
 			"MONGO_OPLOG_URL": "mongodb://localhost:27017/local",
-			"ROOT_URL": "https://rocket.chat",
+			"ROOT_URL": "https://demo.rocket.chat",
+			"DDP_DEFAULT_CONNECTION_URL": "https://demo.rocket.chat",
 			"PORT": "8080"
 		}
-	},{
+	}, {
 		"name": "rocket.chat.1",
 		"max_memory_restart": "1024M",
 		"log_date_format": "YYYY-MM-DD HH:mm:ss SSS",
@@ -26,10 +27,11 @@
 			"CDN_PREFIX": "//dbde4sd21oahf.cloudfront.net",
 			"MONGO_URL": "mongodb://localhost:27017/rocketchat",
 			"MONGO_OPLOG_URL": "mongodb://localhost:27017/local",
-			"ROOT_URL": "https://rocket.chat",
+			"ROOT_URL": "https://demo.rocket.chat",
+			"DDP_DEFAULT_CONNECTION_URL": "https://demo.rocket.chat",
 			"PORT": "8081"
 		}
-	},{
+	}, {
 		"name": "rocket.chat.2",
 		"max_memory_restart": "1024M",
 		"log_date_format": "YYYY-MM-DD HH:mm:ss SSS",
@@ -41,10 +43,11 @@
 			"CDN_PREFIX": "//dbde4sd21oahf.cloudfront.net",
 			"MONGO_URL": "mongodb://localhost:27017/rocketchat",
 			"MONGO_OPLOG_URL": "mongodb://localhost:27017/local",
-			"ROOT_URL": "https://rocket.chat",
+			"ROOT_URL": "https://demo.rocket.chat",
+			"DDP_DEFAULT_CONNECTION_URL": "https://demo.rocket.chat",
 			"PORT": "8082"
 		}
-	},{
+	}, {
 		"name": "rocket.chat.3",
 		"max_memory_restart": "1024M",
 		"log_date_format": "YYYY-MM-DD HH:mm:ss SSS",
@@ -56,7 +59,8 @@
 			"CDN_PREFIX": "//dbde4sd21oahf.cloudfront.net",
 			"MONGO_URL": "mongodb://localhost:27017/rocketchat",
 			"MONGO_OPLOG_URL": "mongodb://localhost:27017/local",
-			"ROOT_URL": "https://rocket.chat",
+			"ROOT_URL": "https://demo.rocket.chat",
+			"DDP_DEFAULT_CONNECTION_URL": "https://demo.rocket.chat",
 			"PORT": "8083"
 		}
 	}]

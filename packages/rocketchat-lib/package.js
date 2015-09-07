@@ -9,25 +9,45 @@ Package.onUse(function(api) {
 	api.versionsFrom('1.0');
 
 	api.use([
+		'reactive-dict',
 		'coffeescript',
+		'random',
 		'underscore',
 		'underscorestring:underscore.string'
 	]);
 
-	api.addFiles('lib/underscore.string.coffee', ['server', 'client']);
 	api.addFiles('lib/core.coffee', ['server', 'client']);
 	api.addFiles('lib/callbacks.coffee', ['server', 'client']);
+	api.addFiles('lib/slashCommand.coffee', ['server', 'client']);
+	
+	api.addFiles([
+		'server/functions/checkUsernameAvailability.coffee',
+		'server/functions/setUsername.coffee'
+	], ['server']);
+	
+	api.addFiles([
+		'server/methods/joinDefaultChannels.coffee',
+		'server/methods/setAdminStatus.coffee',
+		'server/methods/setUsername.coffee',
+		'server/methods/updateUser.coffee'
+	], ['server']);
+
 	api.addFiles('server/sendMessage.coffee', ['server']);
 
 	api.addFiles([
 		'settings/lib/settings.coffee',
 		'settings/lib/rocketchat.coffee'
 	], ['server', 'client']);
+
 	api.addFiles('settings/client/startup.coffee', ['client']);
+	api.addFiles('settings/client/rocketchat.coffee', ['client']);
+
 	api.addFiles([
 		'settings/server/methods.coffee',
 		'settings/server/publication.coffee',
-		'settings/server/startup.coffee'
+		'settings/server/startup.coffee',
+		'settings/server/updateServices.coffee',
+		'settings/server/addOAuthService.coffee'
 	], ['server']);
 
 	api.addFiles('server/cdn.coffee', ['server']);

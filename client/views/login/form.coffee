@@ -24,19 +24,27 @@ Template.loginForm.helpers
 		return 'hidden' unless Template.instance().state.get() is 'login'
 
 	showBackToLoginLink: ->
-		return 'hidden' unless Template.instance().state.get() in ['register', 'forgot-password', 'email-verification']
+		return 'hidden' unless Template.instance().state.get() in ['register', 'forgot-password', 'email-verification', 'wait-activation']
 
 	btnLoginSave: ->
 		switch Template.instance().state.get()
 			when 'register'
 				return t('Submit')
 			when 'login'
+				if RocketChat.settings.get('LDAP_Enable')
+					return t('Login') + ' (LDAP)'
 				return t('Login')
 			when 'email-verification'
 				return t('Send_confirmation_email')
 			when 'forgot-password'
 				return t('Reset_password')
 
+	waitActivation: ->
+		return Template.instance().state.get() is 'wait-activation'
+
+	loginTerms: ->
+		return RocketChat.settings.get 'Layout_Login_Terms'
+		
 Template.loginForm.events
 	'submit #login-card': (event, instance) ->
 		event.preventDefault()
@@ -61,16 +69,30 @@ Template.loginForm.events
 				return
 
 			if instance.state.get() is 'register'
-				Meteor.call 'registerUser', formData, (err, result) ->
+				Meteor.call 'registerUser', formData, (error, result) ->
 					RocketChat.Button.reset(button)
+
+					if error?
+						if error.error is 'Email already exists.'
+							toastr.error t 'Email_already_exists'
+						else
+							toastr.error error.reason
+						return
+
 					Meteor.loginWithPassword formData.email, formData.pass, (error) ->
 						if error?.error is 'no-valid-email'
 							toastr.success t('We_have_sent_registration_email')
 							instance.state.set 'login'
+						else if error?.error is 'inactive-user'
+							instance.state.set 'wait-activation'
 						# else
 							# FlowRouter.go 'index'
 			else
-				Meteor.loginWithPassword formData.emailOrUsername, formData.pass, (error) ->
+				loginMethod = 'loginWithPassword'
+				if RocketChat.settings.get('LDAP_Enable')
+					loginMethod = 'loginWithLDAP'
+
+				Meteor[loginMethod] formData.emailOrUsername, formData.pass, (error) ->
 					RocketChat.Button.reset(button)
 					if error?
 						if error.error is 'no-valid-email'
@@ -78,7 +100,7 @@ Template.loginForm.events
 						else
 							toastr.error error.reason
 						return
-					# FlowRouter.go 'index'
+					FlowRouter.go 'index'
 
 	'click .register': ->
 		Template.instance().state.set 'register'

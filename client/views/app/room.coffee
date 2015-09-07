@@ -1,45 +1,38 @@
 # @TODO bug com o botão para "rolar até o fim" (novas mensagens) quando há uma mensagem com texto que gere rolagem horizontal
 Template.room.helpers
-	visible: ->
-		console.log 'room.helpers visible' if window.rocketDebug
-		return 'visible' if this._id is Session.get('openedRoom')
-
 	tAddUsers: ->
-		console.log 'room.helpers tAddUsers' if window.rocketDebug
 		return t('Add_users')
 
 	tQuickSearch: ->
-		console.log 'room.helpers tQuickSearch' if window.rocketDebug
 		return t('Quick_Search')
 
+	searchResult: ->
+		return Template.instance().searchResult.get()
+
 	favorite: ->
-		console.log 'room.helpers favorite' if window.rocketDebug
 		sub = ChatSubscription.findOne { rid: this._id }, { fields: { f: 1 } }
 		return 'icon-star favorite-room' if sub?.f? and sub.f
 		return 'icon-star-empty'
 
 	subscribed: ->
-		console.log 'room.helpers subscribed' if window.rocketDebug
 		return ChatSubscription.find({ rid: this._id }).count() > 0
 
 	messagesHistory: ->
-		console.log 'room.helpers messagesHistory' if window.rocketDebug
-		return ChatMessageHistory.find { rid: this._id, t: { '$ne': 't' }  }, { sort: { ts: 1 } }
+		return ChatMessage.find { rid: this._id, t: { '$ne': 't' }  }, { sort: { ts: 1 } }
 
 	hasMore: ->
-		console.log 'room.helpers hasMore' if window.rocketDebug
 		return RoomHistoryManager.hasMore this._id
 
 	isLoading: ->
-		console.log 'room.helpers isLoading' if window.rocketDebug
 		return 'btn-loading' if RoomHistoryManager.isLoading this._id
 
 	windowId: ->
-		console.log 'room.helpers windowId' if window.rocketDebug
 		return "chat-window-#{this._id}"
 
+	uploading: ->
+		return Session.get 'uploading'
+
 	usersTyping: ->
-		console.log 'room.helpers usersTyping' if window.rocketDebug
 		users = MsgTyping.get @_id
 		if users.length is 0
 			return
@@ -65,7 +58,6 @@ Template.room.helpers
 		}
 
 	roomName: ->
-		console.log 'room.helpers roomName' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 		return '' unless roomData
 
@@ -75,7 +67,6 @@ Template.room.helpers
 			return roomData.name
 
 	roomIcon: ->
-		console.log 'room.helpers roomIcon' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 		return '' unless roomData?.t
 
@@ -84,26 +75,11 @@ Template.room.helpers
 			when 'c' then return 'icon-hash'
 			when 'p' then return 'icon-lock'
 
-	userData: ->
-		console.log 'room.helpers userData' if window.rocketDebug
-		roomData = Session.get('roomData' + this._id)
-
-		return {} unless roomData
-
-		if roomData.t is 'd'
-			username = _.without roomData.usernames, Meteor.user().username
-			UserManager.addUser username
-
-			userData = {
-				name: Session.get('user_' + username + '_name')
-				emails: Session.get('user_' + username + '_emails') || []
-				phone: Session.get('user_' + username + '_phone')
-				username: String(username)
-			}
-			return userData
+	flexUserInfo: ->
+		username = Session.get('showUserInfo')
+		return Meteor.users.findOne({ username: String(username) }) or { username: String(username) }
 
 	userStatus: ->
-		console.log 'room.helpers userStatus' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 
 		return {} unless roomData
@@ -116,7 +92,6 @@ Template.room.helpers
 			return 'offline'
 
 	autocompleteSettingsAddUser: ->
-		console.log 'room.helpers autocompleteSettingsAddUser' if window.rocketDebug
 		return {
 			limit: 10
 			# inputDelay: 300
@@ -135,7 +110,6 @@ Template.room.helpers
 		}
 
 	autocompleteSettingsRoomSearch: ->
-		console.log 'room.helpers autocompleteSettingsRoomSearch' if window.rocketDebug
 		return {
 			limit: 10
 			# inputDelay: 300
@@ -154,45 +128,39 @@ Template.room.helpers
 		}
 
 	isChannel: ->
-		console.log 'room.helpers isChannel' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 		return '' unless roomData
 		return roomData.t is 'c'
 
 	canAddUser: ->
-		console.log 'room.helpers canAddUser' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 		return '' unless roomData
 		return roomData.t in ['p', 'c'] and roomData.u?._id is Meteor.userId()
 
 	canEditName: ->
-		console.log 'room.helpers canEditName' if window.rocketDebug
 		roomData = Session.get('roomData' + this._id)
 		return '' unless roomData
 		return roomData.u?._id is Meteor.userId() and roomData.t in ['c', 'p']
 
+	canDirectMessage: ->
+		return Meteor.user()?.username isnt this.username
+
 	roomNameEdit: ->
-		console.log 'room.helpers roomNameEdit' if window.rocketDebug
 		return Session.get('roomData' + this._id)?.name
 
 	editingTitle: ->
-		console.log 'room.helpers editingTitle' if window.rocketDebug
 		return 'hidden' if Session.get('editRoomTitle')
 
 	showEditingTitle: ->
-		console.log 'room.helpers showEditingTitle' if window.rocketDebug
 		return 'hidden' if not Session.get('editRoomTitle')
 
 	flexOpened: ->
-		console.log 'room.helpers flexOpened' if window.rocketDebug
 		return 'opened' if Session.equals('flexOpened', true)
 
 	arrowPosition: ->
-		console.log 'room.helpers arrowPosition' if window.rocketDebug
 		return 'left' unless Session.equals('flexOpened', true)
 
 	phoneNumber: ->
-		console.log 'room.helpers phoneNumber' if window.rocketDebug
 		return '' unless this.phoneNumber
 		if this.phoneNumber.length > 10
 			return "(#{this.phoneNumber.substr(0,2)}) #{this.phoneNumber.substr(2,5)}-#{this.phoneNumber.substr(7)}"
@@ -200,52 +168,51 @@ Template.room.helpers
 			return "(#{this.phoneNumber.substr(0,2)}) #{this.phoneNumber.substr(2,4)}-#{this.phoneNumber.substr(6)}"
 
 	isGroupChat: ->
-		console.log 'room.helpers isGroupChat' if window.rocketDebug
 		room = ChatRoom.findOne(this._id, { reactive: false })
 		return room?.t in ['c', 'p']
 
 	userActiveByUsername: (username) ->
-		console.log 'room.helpers userActiveByUsername' if window.rocketDebug
 		status = Session.get 'user_' + username + '_status'
 		if status in ['online', 'away', 'busy']
 			return {username: username, status: status}
 		return
 
 	roomUsers: ->
-		console.log 'room.helpers roomUsers' if window.rocketDebug
 		room = ChatRoom.findOne(this._id, { reactive: false })
+		users = []
+		onlineUsers = RoomManager.onlineUsers.get()
+
+		for username in room?.usernames or []
+			if onlineUsers[username]?
+				utcOffset = onlineUsers[username]?.utcOffset
+				if utcOffset?
+					if utcOffset > 0
+						utcOffset = "+#{utcOffset}"
+
+					utcOffset = "(UTC #{utcOffset})"
+
+				users.push
+					username: username
+					status: onlineUsers[username]?.status
+					utcOffset: utcOffset
+
+		users = _.sortBy users, 'username'
+
 		ret =
 			_id: this._id
-			total: room?.usernames.length
-			totalOnline: 0
-			users: room.usernames
+			total: room?.usernames?.length or 0
+			totalOnline: users.length
+			users: users
 
 		return ret
 
-	flexUserInfo: ->
-		console.log 'room.helpers flexUserInfo' if window.rocketDebug
-		username = Session.get('showUserInfo')
-
-		userData = {
-			# name: Session.get('user_' + uid + '_name')
-			# emails: Session.get('user_' + uid + '_emails')
-			username: String(username)
-		}
-		# phone = Session.get('user_' + uid + '_phone')
-		# if phone? and phone[0]?.phoneNumber
-		# 	userData.phone = phone[0]?.phoneNumber
-
-		return userData
-
 	seeAll: ->
-		console.log 'room.helpers seeAll' if window.rocketDebug
 		if Template.instance().showUsersOffline.get()
 			return t('See_only_online')
 		else
 			return t('See_all')
 
 	getPupupConfig: ->
-		console.log 'room.helpers getPupupConfig' if window.rocketDebug
 		template = Template.instance()
 		return {
 			getInput: ->
@@ -258,13 +225,18 @@ Template.room.helpers
 	selfVideoUrl: ->
 		return Session.get('selfVideoUrl')
 
+	videoActive: ->
+		return (Session.get('remoteVideoUrl') || Session.get('selfVideoUrl'))
+
+	remoteMonitoring: ->
+		return (webrtc?.stackid? && (webrtc.stackid == 'webrtc-ib'))
+
 	flexOpenedRTC1: ->
-		console.log 'room.helpers flexOpenedRTC1' if window.rocketDebug
 		return 'layout1' if Session.equals('flexOpenedRTC1', true)
 
 	flexOpenedRTC2: ->
-		console.log 'room.helpers flexOpenedRTC2' if window.rocketDebug
 		return 'layout2' if Session.equals('flexOpenedRTC2', true)
+
 	rtcLayout1: ->
 		return (Session.get('rtcLayoutmode') == 1 ? true: false);
 
@@ -277,21 +249,80 @@ Template.room.helpers
 	noRtcLayout: ->
 		return (!Session.get('rtcLayoutmode') || (Session.get('rtcLayoutmode') == 0) ? true: false);
 
+	maxMessageLength: ->
+		return RocketChat.settings.get('Message_MaxAllowedSize')
+
+	isAdmin: ->
+		return Meteor.user()?.admin is true
+
+	utc: ->
+		if @utcOffset?
+			return "UTC #{@utcOffset}"
+
+	phoneNumber: ->
+		return '' unless @phoneNumber
+		if @phoneNumber.length > 10
+			return "(#{@phoneNumber.substr(0,2)}) #{@phoneNumber.substr(2,5)}-#{@phoneNumber.substr(7)}"
+		else
+			return "(#{@phoneNumber.substr(0,2)}) #{@phoneNumber.substr(2,4)}-#{@phoneNumber.substr(6)}"
+
+	lastLogin: ->
+		if @lastLogin
+			return moment(@lastLogin).format('LLL')
+
+	canJoin: ->
+		return !! ChatRoom.findOne { _id: @_id, t: 'c' }
+
+	canRecordAudio: ->
+		return navigator.getUserMedia? or navigator.webkitGetUserMedia?
 
 
 Template.room.events
+	"keydown #room-search": (e) ->
+		if e.keyCode is 13
+			e.preventDefault()
 
-	"click .flex-tab .more": (event) ->
-		console.log 'room click .flex-tab .more' if window.rocketDebug
+	"keyup #room-search": _.debounce (e, t) ->
+		t.searchResult.set undefined
+		value = e.target.value.trim()
+		if value is ''
+			return
+
+		Tracker.nonreactive ->
+			Meteor.call 'messageSearch', value, Session.get('openedRoom'), (error, result) ->
+				if result? and (result.messages?.length > 0 or result.users?.length > 0 or result.channels?.length > 0)
+					t.searchResult.set result
+	, 1000
+
+	"touchstart .message": (e, t) ->
+		message = this._arguments[1]
+		doLongTouch = ->
+			mobileMessageMenu.show(message, t)
+
+		t.touchtime = Meteor.setTimeout doLongTouch, 500
+
+	"touchend .message": (e, t) ->
+		Meteor.clearTimeout t.touchtime
+
+	"touchmove .message": (e, t) ->
+		Meteor.clearTimeout t.touchtime
+
+	"touchcancel .message": (e, t) ->
+		Meteor.clearTimeout t.touchtime
+
+	"click .upload-progress-item > a": ->
+		Session.set "uploading-cancel-#{this.id}", true
+
+	"click .flex-tab .more": (event, t) ->
 		if (Session.get('flexOpened'))
 			Session.set('rtcLayoutmode', 0)
 			Session.set('flexOpened',false)
+			t.searchResult.set undefined
 		else
 			Session.set('flexOpened', true)
 
 
 	"click .flex-tab  .video-remote" : (e) ->
-		console.log 'room click .flex-tab .video-remote' if window.rocketDebug
 		if (Session.get('flexOpened'))
 			if (!Session.get('rtcLayoutmode'))
 				Session.set('rtcLayoutmode', 1)
@@ -302,7 +333,6 @@ Template.room.events
 				Session.set('rtcLayoutmode', t)
 
 	"click .flex-tab  .video-self" : (e) ->
-		console.log 'room click .flex-tab .video-self' if window.rocketDebug
 		if (Session.get('rtcLayoutmode') == 3)
 			console.log 'video-self clicked in layout3' if window.rocketDebug
 			i = document.getElementById("fullscreendiv")
@@ -318,65 +348,52 @@ Template.room.events
 						if i.msRequestFullscreen
 							i.msRequestFullscreen()
 
-
-
-	'click .chat-new-messages': (event) ->
-		console.log 'room click .chat-new-messages' if window.rocketDebug
-		# chatMessages = $('#chat-window-' + this._id + ' .messages-box .wrapper')
-		# chatMessages.animate({scrollTop: chatMessages[0].scrollHeight}, 'normal')
-		$('#chat-window-' + FlowRouter.getParam('_id') + ' .input-message').focus()
-
 	'click .toggle-favorite': (event) ->
-		console.log 'room click .toggle-favorite' if window.rocketDebug
 		event.stopPropagation()
 		event.preventDefault()
-		Meteor.call 'toogleFavorite', FlowRouter.getParam('_id'), !$('i', event.currentTarget).hasClass('favorite-room')
+		Meteor.call 'toogleFavorite', @_id, !$('i', event.currentTarget).hasClass('favorite-room')
 
 	'click .join': (event) ->
-		console.log 'room click .join' if window.rocketDebug
 		event.stopPropagation()
 		event.preventDefault()
-		Meteor.call 'joinRoom', FlowRouter.getParam('_id')
-
-	"click .burger": ->
-		console.log 'room click .burger' if window.rocketDebug
-		chatContainer = $("#rocket-chat")
-		if chatContainer.hasClass("menu-closed")
-			chatContainer.removeClass("menu-closed").addClass("menu-opened")
-		else
-			chatContainer.addClass("menu-closed").removeClass("menu-opened")
+		Meteor.call 'joinRoom', @_id
 
 	'focus .input-message': (event) ->
-		console.log 'room focus .input-message' if window.rocketDebug
-		KonchatNotification.removeRoomNotification(FlowRouter.getParam('_id'))
+		KonchatNotification.removeRoomNotification @_id
 
 	'keyup .input-message': (event) ->
-		console.log 'room keyup .input-message',FlowRouter.getParam('_id') if window.rocketDebug
-		ChatMessages.keyup(FlowRouter.getParam('_id'), event, Template.instance())
+		Template.instance().chatMessages.keyup(@_id, event, Template.instance())
+
+	'paste .input-message': (e) ->
+		if not e.originalEvent.clipboardData?
+			return
+
+		items = e.originalEvent.clipboardData.items
+		files = []
+		for item in items
+			if item.kind is 'file' and item.type.indexOf('image/') isnt -1
+				e.preventDefault()
+				files.push
+					file: item.getAsFile()
+					name: 'Clipboard'
+
+		fileUpload files
 
 	'keydown .input-message': (event) ->
-		console.log 'room keydown .input-message',FlowRouter.getParam('_id') if window.rocketDebug
-		ChatMessages.keydown(FlowRouter.getParam('_id'), event, Template.instance())
-
-	# 'keydown .input-message-editing': (event) ->
-	# 	console.log 'room keydown .input-message-editing',this._id if window.rocketDebug
-	# 	ChatMessages.keydownEditing(this._id, event)
-
-	# 'blur .input-message-editing': (event) ->
-	# 	console.log 'room blur keydown blur .input-message-editing',this._id if window.rocketDebug
-	# 	ChatMessages.stopEditingLastMessage()
+		Template.instance().chatMessages.keydown(@_id, event, Template.instance())
 
 	'click .message-form .icon-paper-plane': (event) ->
-		console.log 'room click .message-form .icon-paper-plane' if window.rocketDebug
 		input = $(event.currentTarget).siblings("textarea")
-		ChatMessages.send(FlowRouter.getParam('_id'), input.get(0))
+		Template.instance().chatMessages.send(this._id, input.get(0))
+		event.preventDefault()
+		event.stopPropagation()
+		input.focus()
+		input.get(0).updateAutogrow()
 
 	'click .add-user': (event) ->
-		console.log 'room click click .add-user' if window.rocketDebug
 		toggleAddUser()
 
 	'click .edit-room-title': (event) ->
-		console.log 'room click .edit-room-title' if window.rocketDebug
 		event.preventDefault()
 		Session.set('editRoomTitle', true)
 		$(".fixed-title").addClass "visible"
@@ -385,31 +402,26 @@ Template.room.events
 		, 10
 
 	'keydown #user-add-search': (event) ->
-		console.log 'room keydown #user-add-search' if window.rocketDebug
 		if event.keyCode is 27 # esc
 			toggleAddUser()
 
 	'keydown #room-title-field': (event) ->
-		console.log 'room keydown #room-title-field' if window.rocketDebug
 		if event.keyCode is 27 # esc
 			Session.set('editRoomTitle', false)
 		else if event.keyCode is 13 # enter
-			renameRoom FlowRouter.getParam('_id'), $(event.currentTarget).val()
+			renameRoom @_id, $(event.currentTarget).val()
 
 	'blur #room-title-field': (event) ->
-		console.log 'room blur #room-title-field' if window.rocketDebug
 		# TUDO: create a configuration to select the desired behaviour
 		# renameRoom this._id, $(event.currentTarget).val()
 		Session.set('editRoomTitle', false)
 		$(".fixed-title").removeClass "visible"
 
 	"click .flex-tab .user-image > a" : (e) ->
-		console.log 'room click .flex-tab .user-image > a' if window.rocketDebug
 		Session.set('flexOpened', true)
 		Session.set('showUserInfo', $(e.currentTarget).data('username'))
 
 	'click .user-card-message': (e) ->
-		console.log 'room click .user-card-message' if window.rocketDebug
 		roomData = Session.get('roomData' + this._arguments[1].rid)
 		if roomData.t in ['c', 'p']
 			Session.set('flexOpened', true)
@@ -418,24 +430,20 @@ Template.room.events
 			Session.set('flexOpened', true)
 
 	'click .user-view nav .back': (e) ->
-		console.log 'room click .user-view nav .back' if window.rocketDebug
 		Session.set('showUserInfo', null)
 
 	'click .user-view nav .pvt-msg': (e) ->
-		console.log 'room click .user-view nav .pvt-msg' if window.rocketDebug
 		Meteor.call 'createDirectMessage', Session.get('showUserInfo'), (error, result) ->
 			if error
 				return Errors.throw error.reason
 
 			if result?.rid?
-				FlowRouter.go('room', { _id: result.rid })
+				FlowRouter.go('direct', { username: Session.get('showUserInfo') })
 
 	'click button.load-more': (e) ->
-		console.log 'room click button.load-more' if window.rocketDebug
-		RoomHistoryManager.getMore FlowRouter.getParam('_id')
+		RoomHistoryManager.getMore @_id
 
 	'autocompleteselect #user-add-search': (event, template, doc) ->
-		console.log 'room autocompleteselect #user-add-search' if window.rocketDebug
 		roomData = Session.get('roomData' + Session.get('openedRoom'))
 
 		if roomData.t is 'd'
@@ -444,7 +452,6 @@ Template.room.events
 					return Errors.throw error.reason
 
 				if result?.rid?
-					# FlowRouter.go('room', { _id: result.rid })
 					$('#user-add-search').val('')
 		else if roomData.t in ['c', 'p']
 			Meteor.call 'addUserToRoom', { rid: roomData._id, username: doc.username }, (error, result) ->
@@ -455,17 +462,20 @@ Template.room.events
 				toggleAddUser()
 
 	'autocompleteselect #room-search': (event, template, doc) ->
-		console.log 'room autocompleteselect #room-search' if window.rocketDebug
 		if doc.type is 'u'
-			Meteor.call 'createDirectMessage', doc.uid, (error, result) ->
+			Meteor.call 'createDirectMessage', doc.username, (error, result) ->
 				if error
 					return Errors.throw error.reason
 
 				if result?.rid?
-					FlowRouter.go('room', { _id: result.rid })
+					FlowRouter.go('direct', { username: doc.username })
 					$('#room-search').val('')
-		else
-			FlowRouter.go('room', { _id: doc.rid })
+		else if doc.type is 'r'
+			if doc.t is 'c'
+				FlowRouter.go('channel', { name: doc.name })
+			else if doc.t is 'p'
+				FlowRouter.go('group', { name: doc.name })
+
 			$('#room-search').val('')
 
 	# 'scroll .wrapper': (e, instance) ->
@@ -477,28 +487,42 @@ Template.room.events
 		# 	$('.new-message').addClass('not')
 
 	'click .new-message': (e) ->
-		console.log 'room click .new-message' if window.rocketDebug
 		Template.instance().atBottom = true
 		Template.instance().find('.input-message').focus()
 
 	'click .see-all': (e, instance) ->
-		console.log 'room click .see-all' if window.rocketDebug
 		instance.showUsersOffline.set(!instance.showUsersOffline.get())
 
-	"mousedown .edit-message": (e) ->
-		ChatMessages.edit(e.currentTarget.parentNode.parentNode)
-		# Session.set 'editingMessageId', undefined
-		# Meteor.defer ->
-		# 	Session.set 'editingMessageId', self._id
-		# 	Meteor.defer ->
-		# 		$('.input-message-editing').select()
+	"click .edit-message": (e) ->
+		Template.instance().chatMessages.edit(e.currentTarget.parentNode.parentNode)
+		input = Template.instance().find('.input-message')
+		Meteor.setTimeout ->
+			input.focus()
+		, 200
+
+	"click .editing-commands-cancel > a": (e) ->
+		Template.instance().chatMessages.clearEditing()
+
+	"click .editing-commands-save > a": (e) ->
+		chatMessages = Template.instance().chatMessages
+		chatMessages.send(@_id, chatMessages.input)
 
 	"click .mention-link": (e) ->
+		channel = $(e.currentTarget).data('channel')
+		if channel?
+			FlowRouter.go 'channel', {name: channel}
+			return
+
 		Session.set('flexOpened', true)
 		Session.set('showUserInfo', $(e.currentTarget).data('username'))
 
+	'click .image-to-download': (event) ->
+		ChatMessage.update {_id: this._arguments[1]._id, 'urls.url': $(event.currentTarget).data('url')}, {$set: {'urls.$.downloadImages': true}}
+
 	'click .delete-message': (event) ->
+		message = @_arguments[1]
 		msg = event.currentTarget.parentNode.parentNode
+		instance = Template.instance()
 		return if msg.classList.contains("system")
 		swal {
 			title: t('Are_you_sure')
@@ -511,36 +535,142 @@ Template.room.events
 			closeOnConfirm: false
 			html: false
 		}, ->
-			swal t('Deleted'), t('Your_entry_has_been_deleted'), 'success'
-			ChatMessages.deleteMsg(msg)
+			swal
+				title: t('Deleted')
+				text: t('Your_entry_has_been_deleted')
+				type: 'success'
+				timer: 1000
+				showConfirmButton: false
+
+			instance.chatMessages.deleteMsg(message)
+	'click .pin-message': (event) ->
+		message = @_arguments[1]
+		instance = Template.instance()
+
+		if message.pinned
+			instance.chatMessages.unpinMsg(message)
+		else
+			instance.chatMessages.pinMsg(message)
 
 	'click .start-video': (event) ->
-		webrtc.to = FlowRouter.getParam('_id').replace(Meteor.userId(), '')
-		webrtc.room = FlowRouter.getParam('_id')
+		_id = Template.instance().data._id
+		webrtc.to = _id.replace(Meteor.userId(), '')
+		webrtc.room = _id
+		webrtc.mode = 1
 		webrtc.start(true)
 
 	'click .stop-video': (event) ->
 		webrtc.stop()
 
+	'click .monitor-video': (event) ->
+		_id = Template.instance().data._id
+		webrtc.to = _id.replace(Meteor.userId(), '')
+		webrtc.room = _id
+		webrtc.mode = 2
+		webrtc.start(true)
+
+
+	'click .setup-video': (event) ->
+		webrtc.mode = 2
+		webrtc.activateLocalStream()
+
+
+	'dragenter .dropzone': (e) ->
+		e.currentTarget.classList.add 'over'
+
+	'dragleave .dropzone-overlay': (e) ->
+		e.currentTarget.parentNode.classList.remove 'over'
+
+	'dropped .dropzone-overlay': (event) ->
+		event.currentTarget.parentNode.classList.remove 'over'
+
+		e = event.originalEvent or event
+		files = e.target.files
+		if not files or files.length is 0
+			files = e.dataTransfer?.files or []
+
+		filesToUpload = []
+		for file in files
+			filesToUpload.push
+				file: file
+				name: file.name
+
+		fileUpload filesToUpload
+
+	'change .message-form input[type=file]': (event, template) ->
+		e = event.originalEvent or event
+		files = e.target.files
+		if not files or files.length is 0
+			files = e.dataTransfer?.files or []
+
+		filesToUpload = []
+		for file in files
+			filesToUpload.push
+				file: file
+				name: file.name
+
+		fileUpload filesToUpload
+
+	'click .message-form .mic': (e, t) ->
+		AudioRecorder.start ->
+			t.$('.stop-mic').removeClass('hidden')
+			t.$('.mic').addClass('hidden')
+
+	'click .message-form .stop-mic': (e, t) ->
+		AudioRecorder.stop (blob) ->
+			fileUpload [{
+				file: blob
+				type: 'audio'
+				name: 'Audio record'
+			}]
+
+		t.$('.stop-mic').addClass('hidden')
+		t.$('.mic').removeClass('hidden')
+
+	'click .deactivate': ->
+		username = Session.get('showUserInfo')
+		user = Meteor.users.findOne { username: String(username) }
+		Meteor.call 'setUserActiveStatus', user?._id, false, (error, result) ->
+			if result
+				toastr.success t('User_has_been_deactivated')
+			if error
+				toastr.error error.reason
+
+	'click .activate': ->
+		username = Session.get('showUserInfo')
+		user = Meteor.users.findOne { username: String(username) }
+		Meteor.call 'setUserActiveStatus', user?._id, true, (error, result) ->
+			if result
+				toastr.success t('User_has_been_activated')
+			if error
+				toastr.error error.reason
+
 Template.room.onCreated ->
-	console.log 'room.onCreated' if window.rocketDebug
 	# this.scrollOnBottom = true
 	# this.typing = new msgTyping this.data._id
 	this.showUsersOffline = new ReactiveVar false
 	this.atBottom = true
+	this.searchResult = new ReactiveVar
+
+	self = @
+
+	@autorun ->
+		self.subscribe 'fullUserData', Session.get('showUserInfo'), 1
 
 Template.room.onRendered ->
-	console.log 'room.onRendered' if window.rocketDebug
 	FlexTab.check()
-	ChatMessages.init()
+	this.chatMessages = new ChatMessages
+	this.chatMessages.init(this.firstNode)
 	# ScrollListener.init()
 
 	wrapper = this.find('.wrapper')
 	newMessage = this.find(".new-message")
 
 	template = this
-	onscroll = ->
-		template.atBottom = wrapper.scrollTop is wrapper.scrollHeight - wrapper.clientHeight
+
+	onscroll = _.throttle ->
+		template.atBottom = wrapper.scrollTop >= wrapper.scrollHeight - wrapper.clientHeight
+	, 200
 
 	Meteor.setInterval ->
 		if template.atBottom
@@ -548,15 +678,30 @@ Template.room.onRendered ->
 			newMessage.className = "new-message not"
 	, 100
 
+	wrapper.addEventListener 'touchstart', ->
+		template.atBottom = false
+
+	wrapper.addEventListener 'touchend', ->
+		onscroll()
+		readMessage.enable()
+		readMessage.read()
+
+	wrapper.addEventListener 'scroll', ->
+		template.atBottom = false
+		onscroll()
+
 	wrapper.addEventListener 'mousewheel', ->
 		template.atBottom = false
 		onscroll()
+		readMessage.enable()
+		readMessage.read()
 
 	wrapper.addEventListener 'wheel', ->
 		template.atBottom = false
 		onscroll()
+		readMessage.enable()
+		readMessage.read()
 
-	console.log 'room.rendered' if window.rocketDebug
 	# salva a data da renderização para exibir alertas de novas mensagens
 	$.data(this.firstNode, 'renderedAt', new Date)
 
@@ -571,17 +716,35 @@ Template.room.onRendered ->
 	RoomHistoryManager.getMoreIfIsEmpty this.data._id
 
 renameRoom = (rid, name) ->
+	name = name?.toLowerCase().trim()
 	console.log 'room renameRoom' if window.rocketDebug
-	if Session.get('roomData' + rid).name == name
+	room = Session.get('roomData' + rid)
+	if room.name is name
 		Session.set('editRoomTitle', false)
 		return false
 
 	Meteor.call 'saveRoomName', rid, name, (error, result) ->
 		if result
 			Session.set('editRoomTitle', false)
+			# If room was renamed then close current room and send user to the new one
+			RoomManager.close room.t + room.name
+			switch room.t
+				when 'c'
+					FlowRouter.go 'channel', name: name
+				when 'p'
+					FlowRouter.go 'group', name: name
 
 			toastr.success t('Room_name_changed_successfully')
 		if error
+			if error.error is 'name-invalid'
+				toastr.error t('Invalid_room_name', name)
+				return
+			if error.error is 'duplicate-name'
+				if room.t is 'c'
+					toastr.error t('Duplicate_channel_name', name)
+				else
+					toastr.error t('Duplicate_private_group_name', name)
+				return
 			toastr.error error.reason
 
 toggleAddUser = ->

@@ -6,7 +6,10 @@ usernameIsAvaliable = (username) ->
 	if username.length < 1
 		return false
 
-	return not Meteor.users.findOne({username: username})?
+	if username is 'all'
+		return false
+
+	return not Meteor.users.findOne({username: {$regex : new RegExp(username, "i") }})
 
 @generateSuggestion = (user) ->
 	usernames = []
@@ -33,10 +36,10 @@ usernameIsAvaliable = (username) ->
 				usernames.push slug service.username
 
 	if user.emails?.length > 0
-		for email in user.emails when email.verified is true
+		for email in user.emails when email.address? and email.verified is true
 			usernames.push slug email.address.replace(/@.+$/, '')
 
-		for email in user.emails when email.verified is true
+		for email in user.emails when email.address? and email.verified is true
 			usernames.push slug email.address.replace(/(.+)@(\w+).+/, '$1.$2')
 
 	for item in usernames
