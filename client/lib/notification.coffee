@@ -8,20 +8,28 @@
 					Notification.permission = status
 
 	# notificacoes HTML5
-	showDesktop: (room, msg) ->
-		unless Session.equals('user_' + Meteor.userId() + '_status', 'busy')
-			roomName = room.name + ' - ' + RocketChat.settings.get 'Site_Name'
+	showDesktop: (notification) ->
+		if not window.document.hasFocus?() and Meteor.user().status isnt 'busy'
 			if window.Notification && Notification.permission == "granted"
-				n = new Notification roomName,
-					icon: '/images/rocket-chat-logo-square.png'
-					body: _.stripTags(msg)
+				getAvatarAsPng notification.payload.sender.username, (avatarImage) ->
+					n = new Notification notification.title,
+						icon: avatarImage
+						body: _.stripTags(notification.text)
 
-				n.onclick = ->
-					$('#chat-window-' + room._id + '.chat-window .chat-title').click()
+					if notification.payload?.rid?
+						n.onclick = ->
+							window.focus()
+							switch notification.payload.type
+								when 'd'
+									FlowRouter.go 'direct', {username: notification.payload.sender.username}
+								when 'c'
+									FlowRouter.go 'channel', {name: notification.payload.name}
+								when 'p'
+									FlowRouter.go 'group', {name: notification.payload.name}
 
-				setTimeout ->
-					n.close()
-				, 2000
+					setTimeout ->
+						n.close()
+					, 10000
 
 	newMessage: ->
 		unless Session.equals('user_' + Meteor.userId() + '_status', 'busy') or Meteor.user()?.settings?.preferences?.disableNewMessageNotification

@@ -24,6 +24,10 @@ else
 			if not user?
 				return
 
+			# cancel if the user is already in this room
+			if RocketChat.models.Rooms.findOneByIdContainigUsername(item.rid, user.username)?
+				return
+
 			Meteor.runAsUser user._id, ->
 				Meteor.call 'joinRoom', item.rid
 
