@@ -13,29 +13,19 @@ Package.onUse(function(api) {
 	api.use('coffeescript');
 	api.use('random');
 	api.use('check');
+	api.use('tracker');
 	api.use('ddp-rate-limiter');
 	api.use('underscore');
 	api.use('underscorestring:underscore.string');
 	api.use('monbro:mongodb-mapreduce-aggregation@1.0.1');
-
-	// TAPi18n
-	api.use('templating', 'client');
-	var _ = Npm.require('underscore');
-	var fs = Npm.require('fs');
-	tapi18nFiles = _.compact(_.map(fs.readdirSync('packages/rocketchat-lib/i18n'), function(filename) {
-		if (fs.statSync('packages/rocketchat-lib/i18n/' + filename).size > 16) {
-			return 'i18n/' + filename;
-		}
-	}));
-	api.use(["tap:i18n@1.5.1"], ["client", "server"]);
-	api.imply('tap:i18n');
-	api.addFiles("package-tap.i18n", ["client", "server"]);
-
+	api.use('service-configuration');
+	api.use('check');
+	api.use('arunoda:streams');
 
 	// COMMON
 	api.addFiles('lib/core.coffee');
 	api.addFiles('lib/callbacks.coffee');
-	api.addFiles('lib/rateLimiter.coffee');
+	api.addFiles('lib/roomTypes.coffee');
 	api.addFiles('lib/slashCommand.coffee');
 
 	// MODELS SERVER
@@ -48,6 +38,7 @@ Package.onUse(function(api) {
 
 	// Settings
 	api.addFiles('settings/lib/rocketchat.coffee');
+	api.addFiles('settings/lib/onLoadSettings.coffee');
 
 	api.addFiles('settings/server/models/Settings.coffee', 'server');
 	api.addFiles('settings/server/methods.coffee', 'server');
@@ -58,13 +49,15 @@ Package.onUse(function(api) {
 
 	api.addFiles('settings/lib/settings.coffee');
 
-
 	// CLIENT
+	api.addFiles('client/lib/openRoom.coffee', 'client');
+	api.addFiles('client/lib/roomExit.coffee', 'client');
+	api.addFiles('client/AdminBox.coffee', 'client');
 	api.addFiles('client/Notifications.coffee', 'client');
 	api.addFiles('client/TabBar.coffee', 'client');
 	api.addFiles('client/MessageAction.coffee', 'client');
+	api.addFiles('client/MessageTypes.coffee', 'client');
 
-	api.addFiles('settings/client/startup.coffee', 'client');
 	api.addFiles('settings/client/rocketchat.coffee', 'client');
 
 	// SERVER
@@ -72,8 +65,10 @@ Package.onUse(function(api) {
 	api.addFiles('server/functions/setUsername.coffee', 'server');
 
 	api.addFiles('server/methods/joinDefaultChannels.coffee', 'server');
+	api.addFiles('server/methods/robotMethods.coffee', 'server');
 	api.addFiles('server/methods/sendInvitationEmail.coffee', 'server');
 	api.addFiles('server/methods/setAdminStatus.coffee', 'server');
+	api.addFiles('server/methods/setRealName.coffee', 'server');
 	api.addFiles('server/methods/setUsername.coffee', 'server');
 	api.addFiles('server/methods/updateUser.coffee', 'server');
 
@@ -83,13 +78,27 @@ Package.onUse(function(api) {
 
 	api.addFiles('server/cdn.coffee', 'server');
 
-	// TAPi18n -- needs to be added last
-	api.addFiles(tapi18nFiles, ["client", "server"]);
+	// TAPi18n
+	api.use('templating', 'client');
+	var _ = Npm.require('underscore');
+	var fs = Npm.require('fs');
+	tapi18nFiles = _.compact(_.map(fs.readdirSync('packages/rocketchat-lib/i18n'), function(filename) {
+		if (fs.statSync('packages/rocketchat-lib/i18n/' + filename).size > 16) {
+			return 'i18n/' + filename;
+		}
+	}));
+	api.use('tap:i18n@1.6.1', ['client', 'server']);
+	api.imply('tap:i18n');
+	api.addFiles(tapi18nFiles, ['client', 'server']);
 
 	// EXPORT
 	api.export('RocketChat');
 });
 
 Package.onTest(function(api) {
+	api.use('coffeescript');
+	api.use('sanjo:jasmine@0.20.2');
+	api.use('rocketchat:lib');
 
+  api.addFiles('tests/jasmine/server/unit/models/_Base.spec.coffee', 'server');
 });

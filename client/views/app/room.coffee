@@ -8,7 +8,7 @@ favoritesEnabled = ->
 # @TODO bug com o botão para "rolar até o fim" (novas mensagens) quando há uma mensagem com texto que gere rolagem horizontal
 Template.room.helpers
 	showFormattingTips: ->
-		return RocketChat.Markdown or RocketChat.Highlight
+		return RocketChat.settings.get('Message_ShowFormattingTips') and (RocketChat.Markdown or RocketChat.Highlight)
 	showMarkdown: ->
 		return RocketChat.Markdown
 	showHighlight: ->
@@ -159,42 +159,12 @@ Template.room.helpers
 		else
 			return t('See_all')
 
-	getPupupConfig: ->
+	getPopupConfig: ->
 		template = Template.instance()
 		return {
 			getInput: ->
 				return template.find('.input-message')
 		}
-
-	remoteVideoUrl: ->
-		return Session.get('remoteVideoUrl')
-
-	selfVideoUrl: ->
-		return Session.get('selfVideoUrl')
-
-	videoActive: ->
-		return (Session.get('remoteVideoUrl') || Session.get('selfVideoUrl'))
-
-	remoteMonitoring: ->
-		return (webrtc?.stackid? && (webrtc.stackid == 'webrtc-ib'))
-
-	flexOpenedRTC1: ->
-		return 'layout1' if Session.equals('flexOpenedRTC1', true)
-
-	flexOpenedRTC2: ->
-		return 'layout2' if Session.equals('flexOpenedRTC2', true)
-
-	rtcLayout1: ->
-		return (Session.get('rtcLayoutmode') == 1 ? true: false);
-
-	rtcLayout2: ->
-		return (Session.get('rtcLayoutmode') == 2 ? true: false);
-
-	rtcLayout3: ->
-		return (Session.get('rtcLayoutmode') == 3 ? true: false);
-
-	noRtcLayout: ->
-		return (!Session.get('rtcLayoutmode') || (Session.get('rtcLayoutmode') == 0) ? true: false);
 
 	maxMessageLength: ->
 		return RocketChat.settings.get('Message_MaxAllowedSize')
@@ -218,11 +188,14 @@ Template.room.helpers
 		return !! ChatRoom.findOne { _id: @_id, t: 'c' }
 
 	canRecordAudio: ->
-		return navigator.getUserMedia? or navigator.webkitGetUserMedia?
+		wavRegex = /audio\/wav|audio\/\*/i
+		wavEnabled = RocketChat.settings.get("FileUpload_MediaTypeWhiteList").match(wavRegex)
+		return RocketChat.settings.get('Message_AudioRecorderEnabled') and (navigator.getUserMedia? or navigator.webkitGetUserMedia?) and wavEnabled and RocketChat.settings.get('FileUpload_Enabled')
 
-	roomManager: ->
+	unreadSince: ->
 		room = ChatRoom.findOne(this._id, { reactive: false })
-		return RoomManager.openedRooms[room.t + room.name]
+		if room?
+			return RoomManager.openedRooms[room.t + room.name]?.unreadSince?.get()
 
 	unreadCount: ->
 		return RoomHistoryManager.getRoom(@_id).unreadNotLoaded.get() + Template.instance().unreadCount.get()
@@ -239,7 +212,7 @@ Template.room.helpers
 		return RocketChat.TabBar.getTemplate()
 
 	flexData: ->
-		return RocketChat.TabBar.getData()
+		return _.extend { rid: this._id }, RocketChat.TabBar.getData()
 
 	adminClass: ->
 		return 'admin' if RocketChat.authz.hasRole(Meteor.userId(), 'admin')
@@ -247,7 +220,19 @@ Template.room.helpers
 	showToggleFavorite: ->
 		return true if isSubscribed(this._id) and favoritesEnabled()
 
+	compactView: ->
+		return 'compact' if Meteor.user()?.settings?.preferences?.compactView
+
+	fileUploadAllowedMediaTypes: ->
+		return RocketChat.settings.get('FileUpload_MediaTypeWhiteList')
+
+
 Template.room.events
+	"click, touchend": (e, t) ->
+		Meteor.setTimeout ->
+			t.sendToBottomIfNecessaryDebounced()
+		, 100
+
 	"touchstart .message": (e, t) ->
 		message = this._arguments[1]
 		doLongTouch = ->
@@ -264,7 +249,7 @@ Template.room.events
 	"touchcancel .message": (e, t) ->
 		Meteor.clearTimeout t.touchtime
 
-	"click .upload-progress-item > a": ->
+	"click .upload-progress > a": ->
 		Session.set "uploading-cancel-#{this.id}", true
 
 	"click .unread-bar > a": ->
@@ -334,7 +319,8 @@ Template.room.events
 					file: item.getAsFile()
 					name: 'Clipboard'
 
-		fileUpload files
+		if files.length > 0
+			fileUpload files
 
 	'keydown .input-message': (event) ->
 		Template.instance().chatMessages.keydown(@_id, event, Template.instance())
@@ -399,7 +385,7 @@ Template.room.events
 	'click .message-cog': (e) ->
 		message_id = $(e.currentTarget).closest('.message').attr('id')
 		$('.message-dropdown:visible').hide()
-		$("\##{message_id} .message-dropdown").show()
+		$(".messages-box \##{message_id} .message-dropdown").show()
 
 	'click .message-dropdown-close': ->
 		$('.message-dropdown:visible').hide()
@@ -417,8 +403,9 @@ Template.room.events
 			FlowRouter.go 'channel', {name: channel}
 			return
 
-		RocketChat.TabBar.openFlex()
+		RocketChat.TabBar.setTemplate 'membersList'
 		Session.set('showUserInfo', $(e.currentTarget).data('username'))
+		RocketChat.TabBar.openFlex()
 
 	'click .image-to-download': (event) ->
 		ChatMessage.update {_id: this._arguments[1]._id, 'urls.url': $(event.currentTarget).data('url')}, {$set: {'urls.$.downloadImages': true}}
@@ -502,6 +489,10 @@ Template.room.events
 			if error
 				toastr.error error.reason
 
+	'load img': (e, template) ->
+		template.sendToBottomIfNecessary?()
+
+
 Template.room.onCreated ->
 	# this.scrollOnBottom = true
 	# this.typing = new msgTyping this.data._id
@@ -520,8 +511,12 @@ Template.room.onCreated ->
 			evt["click .#{button.id}"] = button.action
 			Template.room.events evt
 
+
 Template.room.onDestroyed ->
 	RocketChat.TabBar.resetButtons()
+
+	window.removeEventListener 'resize', this.onWindowResize
+
 
 Template.room.onRendered ->
 	this.chatMessages = new ChatMessages
@@ -529,18 +524,85 @@ Template.room.onRendered ->
 	# ScrollListener.init()
 
 	wrapper = this.find('.wrapper')
+	wrapperUl = this.find('.wrapper > ul')
 	newMessage = this.find(".new-message")
 
 	template = this
 
-	wrapperOffset = $('.messages-box > .wrapper').offset()
+	containerBars = $('.messages-container > .container-bars')
+	containerBarsOffset = containerBars.offset()
 
-	onscroll = _.throttle ->
-		template.atBottom = wrapper.scrollTop >= wrapper.scrollHeight - wrapper.clientHeight
-	, 200
+	template.isAtBottom = ->
+		if wrapper.scrollTop >= wrapper.scrollHeight - wrapper.clientHeight
+			newMessage.className = "new-message not"
+			return true
+		return false
+
+	template.sendToBottom = ->
+		wrapper.scrollTop = wrapper.scrollHeight - wrapper.clientHeight
+		newMessage.className = "new-message not"
+
+	template.checkIfScrollIsAtBottom = ->
+		template.atBottom = template.isAtBottom()
+		readMessage.enable()
+		readMessage.read()
+
+	template.sendToBottomIfNecessary = ->
+		if template.atBottom is true and template.isAtBottom() isnt true
+			template.sendToBottom()
+
+	template.sendToBottomIfNecessaryDebounced = _.debounce template.sendToBottomIfNecessary, 10
+
+	template.sendToBottomIfNecessary()
+
+	if not window.MutationObserver?
+		wrapperUl.addEventListener 'DOMSubtreeModified', ->
+			template.sendToBottomIfNecessaryDebounced()
+	else
+		observer = new MutationObserver (mutations) ->
+			mutations.forEach (mutation) ->
+				template.sendToBottomIfNecessaryDebounced()
+
+		observer.observe wrapperUl,
+			childList: true
+		# observer.disconnect()
+
+	template.onWindowResize = ->
+		Meteor.defer ->
+			template.sendToBottomIfNecessaryDebounced()
+
+	window.addEventListener 'resize', template.onWindowResize
+
+	wrapper.addEventListener 'mousewheel', ->
+		template.atBottom = false
+		Meteor.defer ->
+			template.checkIfScrollIsAtBottom()
+
+	wrapper.addEventListener 'wheel', ->
+		template.atBottom = false
+		Meteor.defer ->
+			template.checkIfScrollIsAtBottom()
+
+	wrapper.addEventListener 'touchstart', ->
+		template.atBottom = false
+
+	wrapper.addEventListener 'touchend', ->
+		Meteor.defer ->
+			template.checkIfScrollIsAtBottom()
+		Meteor.setTimeout ->
+			template.checkIfScrollIsAtBottom()
+		, 1000
+		Meteor.setTimeout ->
+			template.checkIfScrollIsAtBottom()
+		, 2000
+
+	$('.flex-tab-bar').on 'click', (e, t) ->
+		Meteor.setTimeout ->
+			template.sendToBottomIfNecessaryDebounced()
+		, 100
 
 	updateUnreadCount = _.throttle ->
-		firstMessageOnScreen = document.elementFromPoint(wrapperOffset.left+1, wrapperOffset.top+50)
+		firstMessageOnScreen = document.elementFromPoint(containerBarsOffset.left+1, containerBarsOffset.top+containerBars.height()+1)
 		if firstMessageOnScreen?.id?
 			firstMessage = ChatMessage.findOne firstMessageOnScreen.id
 			if firstMessage?
@@ -550,55 +612,19 @@ Template.room.onRendered ->
 				template.unreadCount.set 0
 	, 300
 
-	Meteor.setInterval ->
-		if template.atBottom
-			wrapper.scrollTop = wrapper.scrollHeight - wrapper.clientHeight
-			newMessage.className = "new-message not"
-	, 100
-
-	wrapper.addEventListener 'touchstart', ->
-		template.atBottom = false
-
-	wrapper.addEventListener 'touchend', ->
-		onscroll()
-		readMessage.enable()
-		readMessage.read()
-
-	wrapper.addEventListener 'scroll', ->
-		template.atBottom = false
-		onscroll()
-		updateUnreadCount()
-
-	wrapper.addEventListener 'mousewheel', ->
-		template.atBottom = false
-		onscroll()
-		readMessage.enable()
-		readMessage.read()
-
-	wrapper.addEventListener 'wheel', ->
-		template.atBottom = false
-		onscroll()
-		readMessage.enable()
-		readMessage.read()
-
 	# salva a data da renderização para exibir alertas de novas mensagens
 	$.data(this.firstNode, 'renderedAt', new Date)
 
-	webrtc.onAcceptCall = (fromUsername) ->
-		if FlowRouter.current().route.name is 'direct' and FlowRouter.current().params.username is fromUsername
-			return
+	webrtc = WebRTC.getInstanceByRoomId template.data._id
+	if webrtc?
+		Tracker.autorun ->
+			if webrtc.remoteItems.get()?.length > 0
+				RocketChat.TabBar.setTemplate 'membersList'
+				RocketChat.TabBar.openFlex()
 
-		FlowRouter.go 'direct', {username: fromUsername}
-
-	webrtc.onRemoteUrl = (url) ->
-		RocketChat.TabBar.setTemplate 'membersList'
-		RocketChat.TabBar.openFlex()
-		Session.set('remoteVideoUrl', url)
-
-	webrtc.onSelfUrl = (url) ->
-		RocketChat.TabBar.setTemplate 'membersList'
-		RocketChat.TabBar.openFlex()
-		Session.set('selfVideoUrl', url)
+			if webrtc.localUrl.get()?
+				RocketChat.TabBar.setTemplate 'membersList'
+				RocketChat.TabBar.openFlex()
 
 
 renameRoom = (rid, name) ->

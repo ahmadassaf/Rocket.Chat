@@ -24,6 +24,8 @@ readAsArrayBuffer = (file, callback) ->
 			return
 
 		readAsDataURL file.file, (fileContent) ->
+			return unless fileUploadIsValidContentType file.file.type
+
 			text = ''
 
 			if file.type is 'audio'
@@ -62,6 +64,7 @@ readAsArrayBuffer = (file, callback) ->
 						name: file.name or file.file.name
 						size: file.file.size
 						type: file.file.type
+						rid: roomId
 
 					upload = new UploadFS.Uploader
 						store: Meteor.fileStore
