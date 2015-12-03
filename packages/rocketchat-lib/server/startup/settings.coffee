@@ -3,10 +3,14 @@ if not RocketChat.models.Settings.findOneById 'uniqueID'
 	RocketChat.models.Settings.createWithIdAndValue 'uniqueID', Random.id()
 
 RocketChat.settings.addGroup 'Accounts'
-RocketChat.settings.add 'Accounts_RegistrationRequired', true, { type: 'boolean', group: 'Accounts', public: true, section: 'Registration' }
 RocketChat.settings.add 'Accounts_EmailVerification', false, { type: 'boolean', group: 'Accounts', public: true, section: 'Registration' }
 RocketChat.settings.add 'Accounts_ManuallyApproveNewUsers', false, { type: 'boolean', group: 'Accounts', section: 'Registration' }
 RocketChat.settings.add 'Accounts_AllowedDomainsList', '', { type: 'string', group: 'Accounts', public: true, section: 'Registration' }
+
+RocketChat.settings.add 'Accounts_RegistrationForm', 'Public', { type: 'select', group: 'Accounts', public: true, section: 'Registration', values: [ { key: 'Public', i18nLabel: 'Accounts_RegistrationForm_Public' }, { key: 'Disabled', i18nLabel: 'Accounts_RegistrationForm_Disabled' }, { key: 'Secret URL', i18nLabel: 'Accounts_RegistrationForm_Secret_URL' } ] }
+RocketChat.settings.add 'Accounts_RegistrationForm_SecretURL', Random.id(), { type: 'string', group: 'Accounts', section: 'Registration' }
+RocketChat.settings.add 'Accounts_RegistrationForm_LinkReplacementText', 'New user registration is currently disabled', { type: 'string', group: 'Accounts', section: 'Registration', public: true }
+RocketChat.settings.add 'Accounts_Registration_AuthenticationServices_Enabled', true, { type: 'boolean', group: 'Accounts', section: 'Registration', public: true }
 
 RocketChat.settings.add 'Accounts_AvatarStoreType', 'GridFS', { type: 'string', group: 'Accounts', section: 'Avatar' }
 RocketChat.settings.add 'Accounts_AvatarStorePath', '', { type: 'string', group: 'Accounts', section: 'Avatar' }
@@ -54,6 +58,9 @@ RocketChat.settings.add 'Allow_Invalid_SelfSigned_Certs', false, { type: 'boolea
 RocketChat.settings.add 'Disable_Favorite_Rooms', false, { type: 'boolean', group: 'General' }
 RocketChat.settings.add 'CDN_PREFIX', '', { type: 'string', group: 'General' }
 
+RocketChat.settings.add 'UTF8_Names_Validation', '[0-9a-zA-Z-_.]+', { type: 'string', group: 'General', section: 'UTF8', public: true }
+RocketChat.settings.add 'UTF8_Names_Slugify', true, { type: 'boolean', group: 'General', section: 'UTF8', public: true }
+
 RocketChat.settings.addGroup 'API'
 RocketChat.settings.add 'API_Analytics', '', { type: 'string', group: 'API', public: true }
 RocketChat.settings.add 'API_Embed', true, { type: 'boolean', group: 'API', public: true }
@@ -64,7 +71,7 @@ RocketChat.settings.add 'SMTP_Host', '', { type: 'string', group: 'SMTP' }
 RocketChat.settings.add 'SMTP_Port', '', { type: 'string', group: 'SMTP' }
 RocketChat.settings.add 'SMTP_Username', '', { type: 'string', group: 'SMTP' }
 RocketChat.settings.add 'SMTP_Password', '', { type: 'string', group: 'SMTP' }
-RocketChat.settings.add 'From_Email', '', { type: 'string', group: 'SMTP', placeholder: 'Name <email@domain>' }
+RocketChat.settings.add 'From_Email', '', { type: 'string', group: 'SMTP', placeholder: 'email@domain' }
 
 RocketChat.settings.add 'Invitation_Subject', 'You have been invited to Rocket.Chat', { type: 'string', group: 'SMTP', section: 'Invitation' }
 RocketChat.settings.add 'Invitation_HTML', '<h2>You have been invited to <h1>Rocket.Chat</h1></h2><p>Go to ' + __meteor_runtime_config__?.ROOT_URL + ' and try the best open source chat solution available today!</p>', { type: 'string', multiline: true, group: 'SMTP', section: 'Invitation' }
@@ -92,6 +99,8 @@ RocketChat.settings.add 'Meta_msvalidate01', '', { type: 'string', group: 'Meta'
 RocketChat.settings.addGroup 'Push'
 RocketChat.settings.add 'Push_debug', false, { type: 'boolean', group: 'Push', public: true }
 RocketChat.settings.add 'Push_enable', false, { type: 'boolean', group: 'Push', public: true }
+RocketChat.settings.add 'Push_enable_gateway', true, { type: 'boolean', group: 'Push' }
+RocketChat.settings.add 'Push_gateway', 'https://rocket.chat', { type: 'string', group: 'Push' }
 RocketChat.settings.add 'Push_production', false, { type: 'boolean', group: 'Push', public: true }
 RocketChat.settings.add 'Push_apn_passphrase', '', { type: 'string', group: 'Push' }
 RocketChat.settings.add 'Push_apn_key', '', { type: 'string', multiline: true, group: 'Push' }
@@ -124,5 +133,5 @@ Meteor.startup ->
 
 # Remove runtime settings (non-persistent)
 Meteor.startup ->
-	RocketChat.models.Settings.update({ ts: { $lt: RocketChat.settings.ts }, persistent: false }, { $set: { hidden: true } })
-
+	RocketChat.models.Settings.update({ ts: { $lt: RocketChat.settings.ts }, persistent: { $ne: true } }, { $set: { hidden: true } }, { multi: true })
+	RocketChat.models.Settings.update({ ts: { $gte: RocketChat.settings.ts } }, { $unset: { hidden: 1 } }, { multi: true })
