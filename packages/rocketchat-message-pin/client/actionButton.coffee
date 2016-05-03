@@ -13,15 +13,13 @@ Meteor.startup ->
 			message.pinned = true
 			Meteor.call 'pinMessage', message, (error, result) ->
 				if error
-					return toastr.error error.reason
+					return handleError(error)
 		validation: (message) ->
 			if message.pinned or not RocketChat.settings.get('Message_AllowPinning')
 				return false
 
-			if RocketChat.settings.get('Message_AllowPinningByAnyone') or RocketChat.authz.hasRole Meteor.userId(), 'admin'
-				return true
+			return RocketChat.authz.hasAtLeastOnePermission 'pin-message', message.rid
 
-			return ChatRoom.findOne(message.rid).u?._id is Meteor.userId()
 		order: 20
 
 	RocketChat.MessageAction.addButton
@@ -38,15 +36,13 @@ Meteor.startup ->
 			message.pinned = false
 			Meteor.call 'unpinMessage', message, (error, result) ->
 				if error
-					return toastr.error error.reason
+					return handleError(error)
 		validation: (message) ->
 			if not message.pinned or not RocketChat.settings.get('Message_AllowPinning')
 				return false
 
-			if RocketChat.settings.get('Message_AllowPinningByAnyone') or RocketChat.authz.hasRole Meteor.userId(), 'admin'
-				return true
+			return RocketChat.authz.hasAtLeastOnePermission 'pin-message', message.rid
 
-			return ChatRoom.findOne(message.rid).u?._id is Meteor.userId()
 		order: 21
 
 	RocketChat.MessageAction.addButton

@@ -8,6 +8,7 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 		@tryEnsureIndex { 'status': 1 }
 		@tryEnsureIndex { 'active': 1 }, { sparse: 1 }
 		@tryEnsureIndex { 'statusConnection': 1 }, { sparse: 1 }
+		@tryEnsureIndex { 'type': 1 }
 
 
 	# FIND ONE
@@ -88,6 +89,8 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 				{ username: { $nin: exceptions } }
 				{ username: usernameRegex }
 			]
+			type:
+				$in: ['user', 'bot']
 
 		return @find query, options
 
@@ -111,6 +114,9 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 				{username: nameOrUsername}
 			]
 
+			type:
+				$in: ['user']
+
 		return @find query, options
 
 	findByUsernameNameOrEmailAddress: (usernameNameOrEmailAddress, options) ->
@@ -120,6 +126,8 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 				{username: usernameNameOrEmailAddress}
 				{'emails.address': usernameNameOrEmailAddress}
 			]
+			type:
+				$in: ['user', 'bot']
 
 		return @find query, options
 
@@ -169,8 +177,10 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 	setEmail: (_id, email) ->
 		update =
 			$set:
-				'emails.0.address': email
-				'emails.0.verified': false
+				emails: [
+					address: email
+					verified: false
+				]
 
 		return @update _id, update
 
@@ -281,6 +291,41 @@ RocketChat.models.Users = new class extends RocketChat.models._Base
 
 		return @update query, update
 
+	saveUserById: (_id, data) ->
+		setData = {}
+		unsetData = {}
+
+		if data.name?
+			if not _.isEmpty(s.trim(data.name))
+				setData.name = s.trim(data.name)
+			else
+				unsetData.name = 1
+
+		if data.email?
+			if not _.isEmpty(s.trim(data.email))
+				setData.emails = [
+					address: s.trim(data.email)
+				]
+			else
+				unsetData.name = 1
+
+		if data.phone?
+			if not _.isEmpty(s.trim(data.phone))
+				setData.phone = [
+					phoneNumber: s.trim(data.phone)
+				]
+			else
+				unsetData.phone = 1
+
+		update = {}
+
+		if not _.isEmpty setData
+			update.$set = setData
+
+		if not _.isEmpty unsetData
+			update.$unset = unsetData
+
+		return @update { _id: _id }, update
 
 	# INSERT
 	create: (data) ->
