@@ -93,6 +93,44 @@ RocketChat.models.Rooms.findByVisitorToken = function(visitorToken) {
 	return this.find(query);
 };
 
+RocketChat.models.Rooms.findByVisitorId = function(visitorId) {
+	const query = {
+		'v._id': visitorId
+	};
+
+	return this.find(query);
+};
+
 RocketChat.models.Rooms.closeByRoomId = function(roomId) {
 	return this.update({ _id: roomId }, { $unset: { open: 1 } });
+};
+
+RocketChat.models.Rooms.setLabelByRoomId = function(roomId, label) {
+	return this.update({ _id: roomId }, { $set: { label: label } });
+};
+
+RocketChat.models.Rooms.findOpenByAgent = function(userId) {
+	const query = {
+		open: true,
+		'servedBy._id': userId
+	};
+
+	return this.find(query);
+};
+
+RocketChat.models.Rooms.changeAgentByRoomId = function(roomId, newUsernames, newAgent) {
+	const query = {
+		_id: roomId
+	};
+	const update = {
+		$set: {
+			usernames: newUsernames,
+			servedBy: {
+				_id: newAgent.agentId,
+				username: newAgent.username
+			}
+		}
+	};
+
+	this.update(query, update);
 };
